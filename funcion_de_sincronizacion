@@ -1,0 +1,14 @@
+def programar_sincronizacion():
+    # Se ejecuta cada 2 horas; si falla simplemente lo logeamos y se reintentará en el siguiente ciclo
+    try:
+        sincronizar_bd()
+    except Exception as e:
+        print("Error en programar_sincronizacion:", e)
+    finally:
+        # reprogramar usando after del root (si root no existe, esperar 2 horas con sleep)
+        try:
+            root.after(7200000, programar_sincronizacion)  # 2 horas = 7,200,000 ms
+        except Exception:
+            # si root aún no está inicializado, esperar en hilo principal (fallback)
+            time.sleep(7200)
+            programar_sincronizacion()
