@@ -1,0 +1,29 @@
+# ===========================
+# Main
+# ===========================
+def main():
+    init_db()
+    global root, content_frame
+    root = Tk()
+    root.title("Asistencia")
+    root.geometry("600x1024")
+
+    try:
+        logo = PhotoImage(file="logo.png")
+        Label(root, image=logo).pack(pady=20)
+        root._logo_ref = logo
+    except Exception as e:
+        print(f"No se pudo cargar el logo: {e}")
+
+    content_frame = Frame(root)
+    content_frame.pack(expand=True, fill="both")
+
+    vista_principal()
+    programar_sincronizacion()  # 🔄 Sincronización cada 2 horas
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
+
