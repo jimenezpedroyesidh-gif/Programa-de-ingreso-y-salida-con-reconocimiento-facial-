@@ -1,0 +1,92 @@
+  """
+    Sincroniza usuarios y registros entre la BD local (la que usa la app)
+    y la BD remota (tu aplicación web). Intenta subir lo local que no exista en remoto
+    y bajar lo remoto que no exista local.
+    """
+def sincronizar_bd():
+    try:
+        # Intentar conectar al remoto
+        remote_conn = None
+        try:
+            remote_conn = get_remote_conn()
+        except Exception as e_remote:
+            print("No se pudo conectar a la BD remota:", e_remote)
+            # No hay remoto: salir (la app seguirá funcionando localmente)
+            return
+
+        local_conn = get_local_conn()
+        remote_cur = remote_conn.cursor()
+        local_cur = local_conn.cursor()
+
+        # ======================
+        # 🔹 Sincronizar USUARIOS
+        # ======================
+        remote_cur.execute("SELECT codigo, nombre FROM usuarios;")
+        usuarios_pg = remote_cur.fetchall()
+
+        local_cur.execute("SELECT codigo, nombre FROM usuarios;")
+        usuarios_local = local_cur.fetchall()
+
+        set_pg_users = set(usuarios_pg)
+        set_local_users = set(usuarios_local)
+
+        # Subir usuarios de local → remoto
+        nuevos_pg_users = set_local_users - set_pg_users
+        for u in nuevos_pg_users:
+            try:
+                remote_cur.execute("INSERT INTO usuarios (codigo, nombre) VALUES (%s, %s) ON CONFLICT (codigo) DO NOTHING;", u)
+            except Exception as e:
+                print("Error subiendo usuario a remoto:", e)
+
+        # Bajar usuarios de remoto → local
+        nuevos_local_users = set_pg_users - set_local_users
+        for u in nuevos_local_users:
+            try:
+                local_cur.execute("INSERT INTO usuarios (codigo, nombre) VALUES (%s, %s) ON CONFLICT (codigo) DO NOTHING;", u)
+            except Exception as e:
+                print("Error bajando usuario a local:", e)
+
+        # ======================
+        # 🔹 Sincronizar REGISTROS
+        # ======================
+        remote_cur.execute("SELECT codigo, nombre, tipo, fecha, hora, actividad FROM registros;")
+        registros_pg = remote_cur.fetchall()
+
+        local_cur.execute("SELECT codigo, nombre, tipo, fecha, hora, actividad FROM registros;")
+        registros_local = local_cur.fetchall()
+
+        set_pg_reg = set(registros_pg)
+        set_local_reg = set(registros_local)
+
+        # Subir registros locales → remoto
+        nuevos_pg_reg = set_local_reg - set_pg_reg
+        for r in nuevos_pg_reg:
+            try:
+                remote_cur.execute("""
+                    INSERT INTO registros (codigo, nombre, tipo, fecha, hora, actividad)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, r)
+            except Exception as e:
+                print("Error subiendo registro a remoto:", e)
+
+        # Bajar registros remotos → local
+        nuevos_local_reg = set_pg_reg - set_local_reg
+        for r in nuevos_local_reg:
+            try:
+                local_cur.execute("""
+                    INSERT INTO registros (codigo, nombre, tipo, fecha, hora, actividad)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, r)
+            except Exception as e:
+                print("Error bajando registro a local:", e)
+
+        # Guardar cambios
+        remote_conn.commit()
+        local_conn.commit()
+
+        local_conn.close()
+        remote_conn.close()
+        print("✅ Sincronización completada (usuarios + registros)")
+    except Exception as e:
+        print("❌ Error en sincronización:", e)
+        traceback.print_exc()
