@@ -1,0 +1,70 @@
+# ===========================
+# pero solo en local 
+# ===========================
+def init_db():
+    """
+    Crea las tablas necesarias en la BD local Postgres si no existen.
+    """
+    conn = None
+    try:
+        conn = get_local_conn()
+        cur = conn.cursor()
+
+        # Tabla usuarios
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                codigo TEXT UNIQUE,
+                nombre TEXT
+            );
+        """)
+
+        # Tabla registros
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS registros (
+                id SERIAL PRIMARY KEY,
+                codigo TEXT,
+                nombre TEXT,
+                tipo TEXT,
+                fecha TEXT,
+                hora TEXT,
+                actividad TEXT
+            );
+        """)
+
+        # Tabla estado (estado actual de usuarios)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS estado (
+                id SERIAL PRIMARY KEY,
+                codigo TEXT,
+                nombre TEXT,
+                estado TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_estado_codigo_estado ON estado (codigo, estado);
+        """)
+
+        # Tabla admin
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS admin (
+                id SERIAL PRIMARY KEY,
+                usuario TEXT UNIQUE,
+                clave TEXT
+            );
+        """)
+
+        # Usuario admin por defecto (ON CONFLICT DO NOTHING)
+        cur.execute("""
+            INSERT INTO admin (usuario, clave)
+            VALUES (%s, %s)
+            ON CONFLICT (usuario) DO NOTHING;
+        """, ("admin", "1234"))
+
+        conn.commit()
+    except Exception as e:
+        print("Error init_db:", e)
+        if conn:
+            conn.rollback()
+        traceback.print_exc()
+    finally:
+        if conn:
+            conn.close()
