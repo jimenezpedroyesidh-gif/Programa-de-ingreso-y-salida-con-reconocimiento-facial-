@@ -1,0 +1,149 @@
+Documento Técnico: Sistema de Control de Asistencia con Reconocimiento Facial
+
+Autor: Pedro Yesid Hernández Jiménez
+
+1. Introducción
+
+El presente documento describe el diseño, estructura y plan de ejecución de un sistema de control de asistencia basado en reconocimiento facial , con interfaz gráfica desarrollada en Tkinter y gestión de datos mediante PostgreSQL en modo local y remoto.
+
+El objetivo principal es optimizar la gestión de entradas y salidas de usuarios, garantizando seguridad, escalabilidad y facilidad de uso para administradores y operadores.
+
+2. Arquitectura del Sistema
+
+El sistema está compuesto por tres módulos principales:
+
+Módulo de Captura y Reconocimiento Facial
+
+Utiliza OpenCV (cv2) para detección y reconocimiento de rostros.
+
+Aplica el algoritmo LBPH (Histogramas de patrones binarios locales) para identificación de usuarios.
+
+Módulo de Base de Datos
+
+Soporta dos modos:
+
+Local (PG_LOCAL): respaldo en máquina cliente.
+
+Remoto (PG_REMOTE): almacenamiento en servidor externo.
+
+Tablas principales:
+
+usuarios(datos de personas registradas).
+
+registros(historial de entradas/salidas).
+
+estado(control de usuarios activos).
+
+admin(gestión de credenciales administrativas).
+
+Módulo de interfaz gráfica (UI)
+
+Desarrollado en Tkinter .
+
+Funcionalidades:
+
+Registro de usuarios.
+
+Ingreso/salida mediante rostro o código.
+
+Panel de administración.
+
+Exportación de registros a Excel .
+
+3. Componentes Técnicos
+3.1 Librerías utilizadas
+
+cv2 (OpenCV): captura y reconocimiento de rostros.
+
+numpy, os: operaciones de matrices e interacción con archivos.
+
+psycopg2: conexión a PostgreSQL.
+
+fechahora, hora: manejo de marcas temporales.
+
+pandas: exportación a Excel.
+
+tkinter: interfaz gráfica.
+
+traceback: gestión de errores.
+
+Shutil: eliminación de carpetas en registros inválidos.
+
+PIL (opcional): visualización de logotipo.
+
+3.2 Funciones críticas
+
+init_db(): inicializa la base de datos y tablas.
+
+entrenar_modelo(): entrena el modelo de reconocimiento facial.
+
+flujo_reconocimiento(): realiza la identificación de usuarios en tiempo real.
+
+guardar_registro(): almacena entradas y salidas en PostgreSQL.
+
+exportar_excel(): genera informes en formato Excel.
+
+4. Plan de Ejecución
+4.1 Etapa 1 – Preparación del entorno
+
+Dependencias instaladas: Python, OpenCV, Tkinter, psycopg2, pandas.
+
+Configurar bases de datos locales y remotas en PostgreSQL.
+
+Cree un directorio raíz faces/para almacenar imágenes.
+
+4.2 Etapa 2 – Registro de usuarios
+
+Capturar 20 imágenes de cada usuario mediante cámara.
+
+Almacenar imágenes en faces/CODIGO_Nombre/.
+
+Insertar información en la tabla usuarios.
+
+4.3 Etapa 3 – Entrenamiento del modelo
+
+Generar modelo LBPH con imágenes capturadas.
+
+Guarde el modelo entrenado para reconocimiento en tiempo real.
+
+4.4 Etapa 4 – Reconocimiento y registro de asistencia
+
+Ejecutar flujo_reconocimiento().
+
+Validar identidad contra base de datos.
+
+Registrador Ingreso o Salida en registros.
+
+Actualizar tabla estadosegún corresponda.
+
+4.5 Etapa 5 – Administración del sistema
+
+Acceso restringido a través de vista_login_admin().
+
+Panel de administración con opciones:
+
+Registro de nuevos usuarios.
+
+Exportación de registros a Excel.
+
+Gestión de credenciales de administrador.
+
+4.6 Etapa 6 – Exportación e informes
+
+Generación de informes de asistencia en Excel.
+
+Validación de integridad de datos en PostgreSQL.
+
+5. Conclusiones
+
+Este sistema integra tecnologías de visión por computadora , bases de datos relacionales e interfaces gráficas de usuario para ofrecer una solución robusta en la gestión de asistencia.
+
+El plan de ejecución garantiza:
+
+Registro confiable de usuarios.
+
+Reconocimiento facial en tiempo real.
+
+Escalabilidad al operar en modo local y remoto.
+
+Herramientas administrativas para informes e informes de control.
