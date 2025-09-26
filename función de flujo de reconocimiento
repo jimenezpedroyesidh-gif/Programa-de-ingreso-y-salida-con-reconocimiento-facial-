@@ -1,0 +1,136 @@
+  """
+    tipo: "Ingreso" o "Salida"
+    codigo: texto ingresado en el cuadro de vista_principal
+    """
+def flujo_reconocimiento(tipo, codigo, actividad=""):
+    if not codigo:
+        messagebox.showwarning("Atención", "Debe ingresar un código antes de continuar.")
+        return
+
+    conn = None
+    try:
+        conn = get_local_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT nombre FROM usuarios WHERE codigo = %s", (codigo,))
+        row = cur.fetchone()
+
+        if not row:
+            messagebox.showerror("Error", f"No existe un usuario con el código {codigo}.")
+            return
+
+        nombre = row[0]
+
+    except Exception as e:
+        print("Error buscando usuario:", e)
+        messagebox.showerror("Error", "No se pudo consultar la base de datos.")
+        return
+    finally:
+        if conn:
+            conn.close()
+
+    # ==========================
+    # Reconocimiento facial
+    # ==========================
+    model, label_dict = entrenar_modelo()
+    if model is None:
+        messagebox.showwarning("Atención", "No hay datos para reconocimiento.")
+        return
+
+    cap = open_camera(0)
+    if cap is None or not cap.isOpened():
+        messagebox.showerror("Error", "No se pudo abrir la cámara.")
+        return
+
+    reconocido = False
+    start_time = time.time()
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_classifier.detectMultiScale(gray, 1.3, 5)
+
+        for (x, y, w, h) in faces:
+            rostro = gray[y:y+h, x:x+w]
+            rostro = cv2.resize(rostro, (200, 200))
+
+            label, confianza = model.predict(rostro)
+
+            if confianza < 70:  # umbral ajustable
+                persona = label_dict[label]
+                codigo_detectado, nombre_detectado = parse_folder_to_codigo_nombre(persona)
+
+                if codigo_detectado == codigo:
+                    reconocido = True
+                    cap.release()
+                    cv2.destroyAllWindows()
+
+                    fecha_str = datetime.now().strftime("%Y-%m-%d")
+                    if tipo == "Ingreso":
+                        if usuario_tiene_entrada_abierta_por_codigo(codigo, fecha_str):
+                            messagebox.showwarning("Atención", f"{nombre} ya tiene una entrada abierta hoy.")
+                            return
+                        guardar_registro(codigo, nombre, "Ingreso", "", datetime.now())
+                        insertar_estado(codigo, nombre)
+                        messagebox.showinfo("Éxito", f"Ingreso registrado para {nombre} ({codigo})")
+                    else:  # Salida con actividad obligatoria
+                        if not usuario_tiene_entrada_abierta_por_codigo(codigo, fecha_str):
+                            messagebox.showwarning("Atención", f"No existe ingreso previo para {nombre} hoy.")
+                            return
+                        if not actividad.strip():
+                            messagebox.showwarning("Atención", "Debe ingresar una actividad realizada antes de registrar salida.")
+                            return
+                        guardar_registro(codigo, nombre, "Salida", actividad, datetime.now())
+                        eliminar_estado(codigo)
+                        messagebox.showinfo("Éxito", f"Salida registrada para {nombre} ({codigo})")
+
+                    vista_principal()
+                    return
+                else:
+                    cv2.putText(frame, "Codigo no coincide!", (x, y-10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+
+        cv2.imshow("Reconocimiento", frame)
+
+        if time.time() - start_time > 6:
+            break
+        if cv2.waitKey(1) == 27:
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+    if not reconocido:
+        messagebox.showwarning("Atención", "No se reconoció el rostro.")
+
+
+    # ==========================
+    # Registro de ingreso/salida
+    # ==========================
+    if tipo == "Ingreso":
+        fecha_str = datetime.now().strftime("%Y-%m-%d")
+        if usuario_tiene_entrada_abierta_por_codigo(codigo, fecha_str):
+            messagebox.showwarning("Atención", f"{nombre} ya tiene un ingreso abierto el {fecha_str}.")
+            return
+        guardar_registro(codigo, nombre, "Ingreso", "")
+        insertar_estado(codigo, nombre)
+        messagebox.showinfo("Éxito", f"Ingreso registrado para {nombre} ({codigo}).")
+
+    else:  # Salida
+        fecha_str = datetime.now().strftime("%Y-%m-%d")
+        if not usuario_tiene_entrada_abierta_por_codigo(codigo, fecha_str):
+            messagebox.showwarning("Atención", f"No hay ingreso abierto para {nombre} en {fecha_str}.")
+            return
+
+        def guardar_actividad(actividad):
+            guardar_registro(codigo, nombre, "Salida", actividad)
+            eliminar_estado(codigo)
+            messagebox.showinfo("Éxito", f"Salida registrada para {nombre} ({codigo}).")
+            vista_principal()
+
+        vista_actividad(guardar_actividad)
+
+    vista_principal()
