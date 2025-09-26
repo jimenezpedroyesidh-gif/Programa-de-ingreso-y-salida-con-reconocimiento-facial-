@@ -1,0 +1,70 @@
+def redondear_entrada(dt):
+    if dt.time() <= time_obj(8, 15):
+        return dt.replace(hour=8, minute=0, second=0, microsecond=0)
+    return dt
+
+def redondear_salida(dt):
+    return dt.replace(minute=0, second=0, microsecond=0)
+
+def exportar_excel():
+    conn = None
+    try:
+        conn = get_local_conn()
+        df = pd.read_sql("SELECT * FROM registros ORDER BY nombre, fecha, hora", conn)
+    except Exception as e:
+        print("Error exportar_excel:", e)
+        messagebox.showerror("Error", "No se pudo leer la tabla registros desde la BD local.")
+        return
+    finally:
+        if conn:
+            conn.close()
+
+    if df.empty:
+        messagebox.showinfo("Exportar", "No hay registros para exportar.")
+        return
+
+    df["fecha_hora"] = pd.to_datetime(df["fecha"] + " " + df["hora"])
+
+    detalle_rows = []
+    for (nombre, fecha), g in df.groupby(["nombre", "fecha"]):
+        g = g.sort_values("fecha_hora")
+        entradas = g[g["tipo"] == "Ingreso"]["fecha_hora"]
+        salidas  = g[g["tipo"] == "Salida"]["fecha_hora"]
+
+        if entradas.empty or salidas.empty:
+            entrada_adj = entradas.min() if not entradas.empty else None
+            salida_adj  = salidas.max() if not salidas.empty else None
+            horas = 0.0
+        else:
+            entrada_adj = redondear_entrada(entradas.min())
+            salida_adj  = redondear_salida(salidas.max())
+            delta = salida_adj - entrada_adj
+            horas = round(max(delta.total_seconds(), 0) / 3600, 2)
+
+        act = (g[(g["tipo"] == "Salida") & g["actividad"].notna() & (g["actividad"] != "")]
+               .sort_values("fecha_hora")
+               .tail(1)["actividad"]
+               .tolist())
+        actividad_del_dia = act[0] if act else ""
+
+        detalle_rows.append({
+            "nombre": nombre,
+            "fecha": fecha,
+            "entrada": entrada_adj.strftime("%H:%M") if entrada_adj is not None else "",
+            "salida": salida_adj.strftime("%H:%M") if salida_adj is not None else "",
+            "horas_trabajadas": horas,
+            "actividad_del_dia": actividad_del_dia
+        })
+
+    df_detalle = pd.DataFrame(detalle_rows)
+    df_acumulado = (df_detalle.groupby("nombre", as_index=False)["horas_trabajadas"]
+                    .sum()
+                    .rename(columns={"horas_trabajadas": "total_horas"}))
+
+    archivo = f"registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    with pd.ExcelWriter(archivo, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Registros")
+        df_detalle.to_excel(writer, index=False, sheet_name="Detalle")
+        df_acumulado.to_excel(writer, index=False, sheet_name="Acumulado")
+
+    messagebox.showinfo("Exportado", f"Registros exportados a {archivo}")
