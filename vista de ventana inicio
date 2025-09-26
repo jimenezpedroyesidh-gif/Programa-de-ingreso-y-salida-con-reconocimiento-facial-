@@ -1,0 +1,85 @@
+def vista_principal():
+    limpiar_contenido()
+    global main_buttons
+    main_buttons = []
+
+    # =========================
+    # Título
+    # =========================
+    Label(content_frame, text="Asistencia Departamento De Sistema", font=("Arial", 26)).pack(pady=10)
+
+    # =========================
+    # Logo desde mismo directorio
+    # =========================
+    logo_frame = Frame(content_frame)
+    logo_frame.pack(pady=10)
+
+    try:
+        from PIL import Image, ImageTk
+        logo_path = os.path.join(os.path.dirname(__file__), "logo.png")  # logo.png en misma carpeta
+        img = Image.open(logo_path)
+        img.thumbnail((600, 1024), Image.LANCZOS)
+        logo_img = ImageTk.PhotoImage(img)
+        logo_label = Label(logo_frame, image=logo_img)
+        logo_label.image = logo_img
+        logo_label.pack()
+    except Exception as e:
+        print("No se pudo cargar logo:", e)
+        Label(logo_frame, text="(No se pudo cargar logo)", font=("Arial", 12), fg="red").pack()
+
+    # =========================
+    # Recuadro para código (encima de los botones)
+    # =========================
+    codigo_frame = Frame(content_frame, pady=15)
+    codigo_frame.pack()
+
+    Label(codigo_frame, text="Código:", font=("Arial", 18)).pack(side="left", padx=5)
+    codigo_entry = Entry(codigo_frame, font=("Arial", 18), width=20)
+    codigo_entry.pack(side="left", padx=5)
+
+    # =========================
+    # Botones principales
+    # =========================
+    b_ingreso = btn(content_frame,
+        text="Ingreso",
+        command=lambda: flujo_reconocimiento("Ingreso", codigo_entry.get().strip()),
+        bg="#A8D5BA",
+        fg="black",
+        activebackground="#8CCFA5"
+    )
+    b_ingreso.pack(pady=20)
+    main_buttons.append(b_ingreso)
+
+    b_salida = btn(content_frame,
+    text="Salida",
+    command=lambda: (
+        lambda codigo=codigo_entry.get().strip():
+            vista_actividad(lambda actividad: flujo_reconocimiento("Salida", codigo, actividad))
+    )(),
+    bg="#E6A8A8",
+    fg="black",
+    activebackground="#D98C8C"
+    )
+    b_salida.pack(pady=20)
+    main_buttons.append(b_salida)
+
+    b_admin = btn(content_frame, text="Administrador", command=vista_login_admin)
+    b_admin.pack(pady=20)
+    main_buttons.append(b_admin)
+
+    b_salir = btn(content_frame, text="Salir", command=root.quit)
+    b_salir.pack(pady=30)
+    main_buttons.append(b_salir)
+
+    # =========================
+    # Fecha y hora en tiempo real
+    # =========================
+    clock_label = Label(content_frame, font=("Arial", 16))
+    clock_label.pack(pady=10)
+
+    def actualizar_reloj():
+        ahora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        clock_label.config(text=ahora)
+        clock_label.after(1000, actualizar_reloj)
+
+    actualizar_reloj()
