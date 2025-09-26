@@ -1,0 +1,27 @@
+# CONFIGURA ESTO: datos de tu Postgres local (para modo offline) y remoto (tu app web)
+PG_LOCAL = {
+    "host": "localhost",
+    "port": 5432,
+    "dbname": "asistencia",
+    "user": "postgres",
+    "password": "989813"
+}
+
+PG_REMOTE = {
+    "host": "3.93.129.86",
+    "port": 5432,
+    "dbname": "bd_sistemas_becario",
+    "user": "dptosistemas",
+    "password": "sistemas"
+}
+
+# Carpeta de rostros (igual que antes)
+faces_dir = "faces"
+os.makedirs(faces_dir, exist_ok=True)
+
+root = None
+content_frame = None
+
+# Control para evitar múltiples invocaciones
+recognition_running = False
+main_buttons = []  # lista de botones principales en vista_principal
